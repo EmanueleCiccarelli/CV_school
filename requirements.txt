@@ -1,0 +1,17 @@
+# Requisiti per il laboratorio di conversione BlockDL -> Ultralytics
+# Compatibile sia con Ubuntu (Linux) sia con Windows
+
+torch>=2.0.0
+torchvision>=0.15.0
+ultralytics>=8.0.0
+pyyaml>=6.0
+
+# NOTE PER L'INSTALLAZIONE:
+# -------------------------------------------------------------
+# Installazione standard (consigliata):
+#   pip install -r requirements.txt
+#
+# Se i PC del laboratorio non hanno GPU NVIDIA dedicate (solo CPU):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#   pip install ultralytics pyyaml
+
