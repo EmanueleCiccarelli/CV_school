@@ -45,6 +45,7 @@ function findPythonExecutable(projectRoot?: string): string {
       const res = spawnSync(cand, ["-c", "import torch, ultralytics; print(1)"], {
         encoding: "utf8",
         timeout: 4000,
+        shell: isWin,
       });
       if (res.status === 0) {
         return cand;
@@ -68,6 +69,7 @@ export function detectorApiPlugin(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         const url = req.url ? req.url.split("?")[0] : "";
         const rootDir = path.resolve(__dirname, "..");
+        const isWin = process.platform === "win32";
 
         // 1. Endpoint: Creazione dell'Object Detector
         if (url === "/api/build-detector" && req.method === "POST") {
@@ -101,6 +103,7 @@ export function detectorApiPlugin(): Plugin {
                 {
                   cwd: rootDir,
                   env: { ...process.env },
+                  shell: isWin,
                 }
               );
 

@@ -1,17 +1,30 @@
-# Requisiti per il laboratorio di conversione BlockDL -> Ultralytics
-# Compatibile sia con Ubuntu (Linux) sia con Windows
+# =====================================================================
+# REQUISITI LABORATORIO COMPUTER VISION: BLOCKDL -> ULTRALYTICS YOLO
+# Compatibile al 100% con Windows (10/11), Linux (Ubuntu) e macOS
+# =====================================================================
 
+# Deep Learning Framework & Vision Models
 torch>=2.0.0
 torchvision>=0.15.0
 ultralytics>=8.0.0
+
+# Elaborazione Dati, Immagini & Configurazione
 pyyaml>=6.0
+numpy>=1.23.0
+pillow>=9.0.0
 
-# NOTE PER L'INSTALLAZIONE:
-# -------------------------------------------------------------
-# Installazione standard (consigliata):
-#   pip install -r requirements.txt
+# ---------------------------------------------------------------------
+# NOTE GUIDA ALL'INSTALLAZIONE PER DOCENTI E STUDENTI:
+# ---------------------------------------------------------------------
+# 1. Installazione standard (automatica per la maggior parte dei PC):
+#      pip install -r requirements.txt
 #
-# Se i PC del laboratorio non hanno GPU NVIDIA dedicate (solo CPU):
-#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-#   pip install ultralytics pyyaml
-
+# 2. Per PC del laboratorio scolastico SENZA scheda video GPU (CPU-only):
+#    (Consigliato per evitare di scaricare file CUDA pesanti non necessari):
+#      pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#      pip install ultralytics pyyaml numpy pillow
+#
+# 3. Per PC con scheda video NVIDIA (CUDA):
+#      pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#      pip install ultralytics pyyaml numpy pillow
+# ---------------------------------------------------------------------
