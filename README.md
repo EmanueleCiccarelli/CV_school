@@ -15,6 +15,10 @@ L'obiettivo è consentire agli studenti di:
 ```
 VGG for school/
 │
+├── blockdl-main/                # Web app didattica interattiva a 6 livelli con validazione progressiva
+│   ├── src/                     # Sorgenti React + Canvas + Validatore integrato
+│   └── vite-detector-plugin.ts  # Plugin Vite con API per lanciare in automatico la conversione .pt
+│
 ├── convert_vgg_to_detector.py   # Script coordinatore principale: valida BlockDL e genera il detector
 ├── vgg_validator.py             # Modulo di validazione rigorosa VGG-16 e diagnostica didattica BlockDL
 ├── detector_builder.py          # Costruttore dell'Object Detector Ultralytics (ImageNet + YOLO Detect Head)
@@ -23,10 +27,11 @@ VGG for school/
 ├── prepare_mnist_1_7.py         # Scarica e prepara MNIST (1 e 7) in formato Ultralytics
 ├── prepare_mnist_color_1_7.py   # MNIST colorato ad alto contrasto per rilevamento dal vivo su smartphone
 ├── predict.py                   # Script di inferenza e test interattivo (anteprima ASCII)
+├── reset_environment.py         # Script per il reset totale dell'ambiente (PT, YAML, network, sandbox)
 ├── requirements.txt             # Dipendenze necessarie (PyTorch, Ultralytics, PyYAML)
 ├── README.md                    # Questa guida
 │
-└── network to convert/          # Cartella dove gli studenti inseriscono il file .py esportato da BlockDL
+└── network to convert/          # Cartella dove viene salvato il file .py esportato da BlockDL
     └── vgg16_blockdl.py         # File di riferimento VGG-16 generato da BlockDL
 ```
 
@@ -34,27 +39,25 @@ VGG for school/
 
 ## 🚀 Fase 2: Da VGG-16 (BlockDL) a YOLO Object Detector
 
-Gli studenti compongono graficamente l'architettura VGG-16 su BlockDL (13 convoluzioni in 5 blocchi e 5 MaxPool) ed esportano il file `.py` in `network to convert/`.
+### 1. Avvio dell'Ambiente Interattivo (BlockDL Progressive Sandbox)
 
-### 1. Conversione e Validazione Architetturale
+Gli studenti avviano l'ambiente interattivo guidato a 6 livelli:
 
-Eseguire da terminale:
 ```bash
-python convert_vgg_to_detector.py
+cd blockdl-main
+npm run dev
 ```
 
-Lo script coordina in modo modulare la pipeline didattica:
-1. **Analisi e Validazione Architetturale Rigorosa (`vgg_validator.py`)**:
-   - Controlla che i 13 layer convoluzionali e i 5 MaxPool corrispondano all'architettura standard VGG-16.
-   - Se ci sono errori (es. numero filtri errato, padding mancante, blocchi incompleti), stampa un **report diagnostico dettagliato** con istruzioni chiare per lo studente su quale blocco correggere su BlockDL.
-2. **Presentazione dell'Adattamento Didattico**:
-   - Riconosce ed esclude i 3 layer lineari finali di classificazione.
-   - Mostra allo studente l'estrazione delle feature map multi-scala C3 (stride 8, 256 ch), C4 (stride 16, 512 ch) e C5 (stride 32, 512 ch).
-   - Collega la **YOLO Detect Head** multi-scala (senza neck) direttamente alle tre feature maps.
-   - Spiega l'importanza del **Transfer Learning** con pesi ImageNet per consentire l'addestramento immediato (fine-tuning).
-3. **Generazione ed Esportazione (`detector_builder.py`)**:
-   - Inizializza l'architettura nativa Ultralytics `DetectionModel` con i pesi ImageNet pre-allenati.
-   - Salva il file `vgg16_detector.pt` ed esegue un test automatico di forward pass per confermare la piena operatività.
+Nel browser (all'indirizzo `http://localhost:5173`):
+1. Gli studenti costruiscono la rete blocco per blocco (Livello 1: C1 $\to$ Livello 2: C2 $\to$ Livello 3: C3 $\to$ Livello 4: C4 $\to$ Livello 5: C5 $\to$ Livello 6: Classificatore FC).
+2. La sandbox valida automaticamente ciascun livello evidenziando eventuali incongruenze graficamente rispetto al blueprint VGG-16.
+3. **Completamento del Livello 6**: una volta completata e verificata l'intera architettura, la sandbox:
+   - Salva il codice PyTorch in `network to convert/vgg16_blockdl.py`.
+   - **Avvia automaticamente** la trasformazione in Object Detector Ultralytics (`vgg16_detector.pt`).
+   - Mostra agli studenti l'adattamento della loro rete (rimozione dei 3 layer densi finali, collegamento delle feature map multi-scala C3-C5 alla YOLO Detect Head, e calibrazione pesi ImageNet per il transfer learning).
+   - Fornisce il pulsante **Scarica .pt** e i comandi pronti all'uso per proseguire l'addestramento su Ultralytics Platform!
+
+*(In alternativa, è sempre possibile lanciare la conversione da terminale con `python convert_vgg_to_detector.py`).*
 
 ---
 
@@ -83,6 +86,25 @@ Lo script coordina in modo modulare la pipeline didattica:
 ```bash
 yolo train model=vgg16_detector.pt data=coco8.yaml task=detect imgsz=640 epochs=10
 ```
+
+---
+
+## 👨‍🏫 Reset Totale dell'Ambiente di Laboratorio (Solo da Terminale)
+
+Per consentire al docente di eseguire simulazioni e prove e poi **riportare l'intero ambiente allo stato iniziale pulito** prima di distribuirlo agli studenti:
+
+```bash
+python reset_environment.py
+```
+
+### Caratteristiche di Sicurezza & Operazioni:
+- **Protezione da esecuzioni accidentali**: richiede una digitazione esplicita di conferma da terminale (`RESET` / `s` / `yes`), evitando cancellazioni per errore. *(Per script automatici è possibile usare `python reset_environment.py --force`).*
+- **Pulizia Modelli**: elimina tutti i modelli `.pt` e file `.yaml` generati.
+- **Svuotamento Cartella**: cancella tutti i file esportati all'interno di `network to convert/`.
+- **Pulizia Cache**: rimuove cartelle temporanee di training o download (`runs/`, `datasets/`, `__pycache__`).
+- **Reset Sandbox BlockDL**: azzera la versione di reset del browser; al prossimo avvio o refresh, tutti i livelli (2..6) tornano bloccati e il canvas si riapre pulito sul Livello 1.
+
+*(Disponibile anche dalla cartella `blockdl-main` tramite il comando `npm run reset:all`).*
 
 ---
 

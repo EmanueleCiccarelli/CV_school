@@ -1,0 +1,46 @@
+/* Layer node specific styling */
+.layer-node {
+  position: relative;
+}
+
+/* Delete button styling for layer nodes */
+.layer-node .delete-button {
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.layer-node:hover .delete-button {
+  opacity: 1;
+}
+
+/* Remove any default styling that might interfere */
+#root {
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ReactFlow handle styling */
+.layer-node .react-flow__handle {
+  width: 12px;
+  height: 12px;
+  border: 2px solid white;
+  border-radius: 50%;
+}
+
+.layer-node .react-flow__handle-top {
+  top: -6px;
+}
+
+.layer-node .react-flow__handle-bottom {
+  bottom: -6px;
+}
+
+/* Node selection styling */
+.react-flow__node.selected .layer-node {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
