@@ -4,9 +4,9 @@ Questo progetto è strutturato per un laboratorio didattico di Computer Vision (
 L'obiettivo è consentire agli studenti di:
 1. **Costruire visivamente una rete neurale a blocchi** tramite [BlockDL](https://blockdl.com/editor).
 2. **Convertire il codice esportato in un modello `.pt` nativo** compatibile con la piattaforma [Ultralytics](https://platform.ultralytics.com/) ed il comando `yolo train`.
-3. **Addestrare il modello** (in locale o sincronizzato con il cloud Ultralytics) su compiti di classificazione di immagini:
-   - *Fase 1 (introduttiva)*: CNN semplice su versione ridotta di MNIST (discriminazione binaria cifre 1 e 7).
-   - *Fase 2 (avanzata)*: Costruzione manuale e training di una **VGG-16** su dataset personalizzato.
+3. **Addestrare il modello** (in locale o sincronizzato con il cloud Ultralytics) su due compiti:
+   - *Fase 1 (Classificazione)*: CNN semplice su versione ridotta di MNIST (cifre 1 e 7) e variante colorata real-world per app mobile.
+   - *Fase 2 (Object Detection)*: Costruzione manuale di una **VGG-16**, trasferimento dei pesi pre-addestrati da `torchvision` (ImageNet), taglio dei layer densi e collegamento a una **YOLO Detect Head** multi-scala (C3, C4, C5) senza neck.
 
 ---
 
@@ -15,137 +15,91 @@ L'obiettivo è consentire agli studenti di:
 ```
 VGG for school/
 │
-├── main.py                     # Script principale per gli studenti: esegue la conversione con 1 comando
-├── convert_to_ultralytics.py   # Engine di conversione (AST Sanitizer, FX Parser, Ultralytics Exporter)
-├── requirements.txt            # Dipendenze necessarie (PyTorch, Ultralytics, PyYAML)
-├── README.md                   # Questa guida
+├── convert_vgg_to_detector.py   # Script coordinatore principale: valida BlockDL e genera il detector
+├── vgg_validator.py             # Modulo di validazione rigorosa VGG-16 e diagnostica didattica BlockDL
+├── detector_builder.py          # Costruttore dell'Object Detector Ultralytics (ImageNet + YOLO Detect Head)
+├── main.py                      # Script di conversione CNN per compiti di classificazione
+├── convert_to_ultralytics.py    # Engine per la classificazione
+├── prepare_mnist_1_7.py         # Scarica e prepara MNIST (1 e 7) in formato Ultralytics
+├── prepare_mnist_color_1_7.py   # MNIST colorato ad alto contrasto per rilevamento dal vivo su smartphone
+├── predict.py                   # Script di inferenza e test interattivo (anteprima ASCII)
+├── requirements.txt             # Dipendenze necessarie (PyTorch, Ultralytics, PyYAML)
+├── README.md                    # Questa guida
 │
-└── network to convert/         # Cartella dove gli studenti inseriscono il file .py esportato da BlockDL
-    └── pytorch_model_sequential (1).py
+└── network to convert/          # Cartella dove gli studenti inseriscono il file .py esportato da BlockDL
+    └── vgg16_blockdl.py         # File di riferimento VGG-16 generato da BlockDL
 ```
 
 ---
 
-## 🚀 Guida Rapida (Quick Start)
+## 🚀 Fase 2: Da VGG-16 (BlockDL) a YOLO Object Detector
 
-### 1. Installazione Requisiti
+Gli studenti compongono graficamente l'architettura VGG-16 su BlockDL (13 convoluzioni in 5 blocchi e 5 MaxPool) ed esportano il file `.py` in `network to convert/`.
 
-Funziona sia su **Ubuntu (Linux)** sia su **Windows** (PowerShell o CMD).
+### 1. Conversione e Validazione Architetturale
 
+Eseguire da terminale:
 ```bash
-pip install -r requirements.txt
+python convert_vgg_to_detector.py
 ```
 
-> **Nota per aule/laboratori con sole CPU (senza scheda NVIDIA):**
-> ```bash
-> pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
-> pip install ultralytics pyyaml
-> ```
+Lo script coordina in modo modulare la pipeline didattica:
+1. **Analisi e Validazione Architetturale Rigorosa (`vgg_validator.py`)**:
+   - Controlla che i 13 layer convoluzionali e i 5 MaxPool corrispondano all'architettura standard VGG-16.
+   - Se ci sono errori (es. numero filtri errato, padding mancante, blocchi incompleti), stampa un **report diagnostico dettagliato** con istruzioni chiare per lo studente su quale blocco correggere su BlockDL.
+2. **Presentazione dell'Adattamento Didattico**:
+   - Riconosce ed esclude i 3 layer lineari finali di classificazione.
+   - Mostra allo studente l'estrazione delle feature map multi-scala C3 (stride 8, 256 ch), C4 (stride 16, 512 ch) e C5 (stride 32, 512 ch).
+   - Collega la **YOLO Detect Head** multi-scala (senza neck) direttamente alle tre feature maps.
+   - Spiega l'importanza del **Transfer Learning** con pesi ImageNet per consentire l'addestramento immediato (fine-tuning).
+3. **Generazione ed Esportazione (`detector_builder.py`)**:
+   - Inizializza l'architettura nativa Ultralytics `DetectionModel` con i pesi ImageNet pre-allenati.
+   - Salva il file `vgg16_detector.pt` ed esegue un test automatico di forward pass per confermare la piena operatività.
 
 ---
 
-### 2. Disegnare ed Esportare la Rete da BlockDL
+### 2. Addestramento dell'Object Detector su Ultralytics
 
-1. Aprire l'editor grafico su [BlockDL](https://blockdl.com/editor).
-2. Comporre i layer (es. Conv2D, MaxPool2D, Flatten, Linear).
-3. Cliccare su **Export -> PyTorch** e scaricare il file Python (es. `pytorch_model_sequential.py`).
-4. Spostare il file scaricato dentro la cartella:
+#### Su Ultralytics Platform (Cloud):
+* **Su Ubuntu / Linux (Bash):**
+  ```bash
+  export ULTRALYTICS_API_KEY="tua_api_key_ultralytics"
+  yolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 project=tuo-progetto
+  ```
+
+* **Su Windows (PowerShell):**
+  ```powershell
+  $env:ULTRALYTICS_API_KEY="tua_api_key_ultralytics"
+  yolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 project=tuo-progetto
+  ```
+
+* **Su Windows (Prompt dei comandi CMD):**
+  ```cmd
+  set ULTRALYTICS_API_KEY=tua_api_key_ultralytics
+  yolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 project=tuo-progetto
+  ```
+
+#### In locale offline (es. con dataset di test coco8):
+```bash
+yolo train model=vgg16_detector.pt data=coco8.yaml task=detect imgsz=640 epochs=10
+```
+
+---
+
+## 🎨 Fase 1: Classificazione MNIST (1 e 7) per App Smartphone
+
+Per la fase introduttiva di classificazione:
+
+1. **Generare il dataset colorato**:
+   ```bash
+   python prepare_mnist_color_1_7.py
    ```
-   network to convert/
+   Crea `mnist_color_1_7.zip` con variazioni cromatiche ad alto contrasto (inchiostro su carta bianca, penna blu, lavagna, ecc.) per funzionare da fotocamera smartphone nel mondo reale.
+2. **Convertire la CNN semplice da BlockDL**:
+   ```bash
+   python main.py
    ```
-
----
-
-### 3. Conversione in Modello Ultralytics (.pt)
-
-Basta eseguire da terminale:
-
-```bash
-python main.py
-```
-
-Lo script:
-- Seleziona in automatico il primo file presente in `network to convert/`.
-- Neutralizza le dimensioni fittizie dei layer densi (`nn.Linear`) ricalcolandole dinamicamente.
-- Rimuove eventuali `log_softmax` o `softmax` finali (Ultralytics calcola la `CrossEntropyLoss` direttamente sui logits).
-- Adatta il primo layer convoluzionale a 3 canali RGB (standard di Ultralytics).
-- Salva il modello pronto: `model.pt` (e la sua architettura `model.yaml`).
-
----
-
-## 🏋️ Addestramento con Ultralytics
-
-Al termine della conversione, `main.py` mostra a schermo i comandi esatti da copiare e incollare.
-
-### Opzione A: Con Ultralytics Platform (Cloud & Dashboard)
-
-#### Su Ubuntu / Linux (Bash):
-```bash
-export ULTRALYTICS_API_KEY="la_tua_api_key_fornita_da_ultralytics"
-yolo train model=model.pt data=ul://emanuele-ciccarelli/tuo-dataset task=classify imgsz=28 project=emanuele-ciccarelli/progetto
-```
-
-#### Su Windows (PowerShell):
-```powershell
-$env:ULTRALYTICS_API_KEY="la_tua_api_key_fornita_da_ultralytics"
-yolo train model=model.pt data=ul://emanuele-ciccarelli/tuo-dataset task=classify imgsz=28 project=emanuele-ciccarelli/progetto
-```
-
-#### Su Windows (Prompt dei comandi - CMD):
-```cmd
-set ULTRALYTICS_API_KEY=la_tua_api_key_fornita_da_ultralytics
-yolo train model=model.pt data=ul://emanuele-ciccarelli/tuo-dataset task=classify imgsz=28 project=emanuele-ciccarelli/progetto
-```
-
----
-
-### Opzione B: Addestramento Locale con Dataset su Disco
-
-Organizzare le cartelle delle immagini in questo modo:
-```
-dataset/
-├── train/
-│   ├── 1/
-│   └── 7/
-└── val/
-    ├── 1/
-    └── 7/
-```
-
-Avviare il comando:
-```bash
-yolo train model=model.pt data=dataset task=classify imgsz=28 epochs=10
-```
-
----
-
-## ⚙️ Parametri Opzionali di `main.py`
-
-Sebbene `python main.py` funzioni con zero argomenti, sono disponibili flag opzionali per scenari avanzati:
-
-- **Specificare un file particolare**:
-  ```bash
-  python main.py --file "network to convert/mia_rete.py"
-  ```
-- **Risoluzione immagine per VGG-16 (default 28 per MNIST)**:
-  ```bash
-  python main.py --imgsz 224
-  ```
-- **Personalizzare il nome del file di output**:
-  ```bash
-  python main.py --output "vgg16_custom.pt"
-  ```
-- **Specificare i nomi delle classi**:
-  ```bash
-  python main.py --classes uno sette
-  ```
-
----
-
-## 💡 Perché questo Engine è Robusto per gli Studenti?
-
-1. **Nessun calcolo manuale del Flatten**: In BlockDL gli studenti spesso sbagliano il calcolo dell'ingresso di `nn.Linear` (ad esempio inserendo numeri a caso come `100352`). L'AST sanitizer e il calcolatore dinamico determinano i canali esatti in automatico.
-2. **Compatibilità di loss**: Rimuove automaticamente `log_softmax` o `softmax` finali inseriti per abitudine dagli studenti, prevenendo errori di calcolo gradiente con Ultralytics.
-3. **Immunità alla variazione di risoluzione**: Inserisce un layer `AdaptiveAvgPool2d` prima del `Flatten`, garantendo che la rete non vada in errore anche se Ultralytics adatta la risoluzione (es. da 28 a 32 pixel).
-4. **Cross-Platform nativo**: Usa la libreria standard `pathlib.Path` per gestire i percorsi in modo trasparente sia con i separatori `/` di Linux/Ubuntu sia con `\` di Windows.
-
+3. **Testare l'inferenza**:
+   ```bash
+   python predict.py
+   ```
