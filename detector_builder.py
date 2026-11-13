@@ -6,9 +6,9 @@ Questo modulo si occupa di:
    - Backbone: TorchVision wrapper nativo con VGG-16 pre-addestrata su ImageNet
      (unwrap=True, truncate=2 per rimuovere avgpool e i 3 linear layer, split=True).
    - Prelevare le feature map multi-scala:
-     * C3 (Index 17): stride 8, 256 canali
-     * C4 (Index 24): stride 16, 512 canali
-     * C5 (Index 31): stride 32, 512 canali
+     * C3 (Index 24): stride 8, 256 canali
+     * C4 (Index 34): stride 16, 512 canali
+     * C5 (Index 44): stride 32, 512 canali
    - Head: YOLO Detect Head collegata direttamente a C3, C4, C5 (senza neck intermedio).
 2. Costruire il DetectionModel caricando i pesi pre-allenati ImageNet ("DEFAULT").
 3. Salvare l'architettura in formato .yaml e il checkpoint .pt compatibile con Ultralytics Platform.
@@ -34,17 +34,18 @@ def get_vgg16_detector_yaml(nc: int = 80) -> Dict[str, Any]:
     """
     return {
         "nc": nc,
+        "scale": "n",
         "scales": {"n": [1.0, 1.0, 1024]},
         "backbone": [
             # [from, repeats, module, args]
-            # Layer 0: VGG-16 pre-addestrata ImageNet (DEFAULT), unwrap=True, truncate=2 (rimuove avgpool e lineari), split=True
-            [-1, 1, "TorchVision", [512, "vgg16", "DEFAULT", True, 2, True]],
+            # Layer 0: VGG-16 con pesi ImageNet (DEFAULT), unwrap=True, truncate=2 (rimuove avgpool e lineari), split=True
+            [-1, 1, "TorchVision", [512, "vgg16_bn", "DEFAULT", True, 2, True]],
             # Layer 1: Feature map C3 (uscita MaxPool blocco 3, stride 8, 256 canali)
-            [0, 1, "Index", [256, 17]],
+            [0, 1, "Index", [256, 24]],
             # Layer 2: Feature map C4 (uscita MaxPool blocco 4, stride 16, 512 canali)
-            [0, 1, "Index", [512, 24]],
+            [0, 1, "Index", [512, 34]],
             # Layer 3: Feature map C5 (uscita MaxPool blocco 5, stride 32, 512 canali)
-            [0, 1, "Index", [512, 31]],
+            [0, 1, "Index", [512, 44]],
         ],
         "head": [
             # Layer 4: Detect Head collegata direttamente a C3, C4, C5 (senza neck FPN/PAN)
@@ -58,6 +59,7 @@ def build_and_export_detector(
     nc: int = 80,
     imgsz: int = 640,
     verbose: bool = True,
+    save_yaml: bool = False,
 ) -> Path:
     """
     Costruisce l'Object Detector Ultralytics VGG-16 con pesi ImageNet e lo esporta in formato .pt.
@@ -67,6 +69,7 @@ def build_and_export_detector(
         nc: Numero di classi (default: 80).
         imgsz: Risoluzione immagine per il rilevamento (default: 640).
         verbose: Se True, visualizza il riepilogo dettagliato del modello.
+        save_yaml: Se True, salva anche il file .yaml corrispondente (default: False).
 
     Ritorna:
         Path del checkpoint .pt creato.
@@ -76,18 +79,27 @@ def build_and_export_detector(
 
     yaml_cfg = get_vgg16_detector_yaml(nc=nc)
 
-    # Salva il file .yaml corrispondente
-    yaml_path = output_pt_path.with_suffix(".yaml")
-    try:
-        YAML.save(yaml_path, yaml_cfg)
-    except Exception:
-        pass
+    # Opzionale: salvataggio file .yaml solo se esplicitamente richiesto
+    if save_yaml:
+        yaml_path = output_pt_path.with_suffix(".yaml")
+        try:
+            YAML.save(yaml_path, yaml_cfg)
+        except Exception:
+            pass
 
     if verbose:
         print(f"\n⚙️  Inizializzazione DetectionModel (VGG-16 Backbone + YOLO Detect Head, {nc} classi)...")
 
     # Istanziazione DetectionModel Ultralytics con pesi ImageNet pre-caricati
-    det_model = DetectionModel(cfg=yaml_cfg, ch=3, nc=nc, verbose=verbose)
+    # Manteniamo verbose=False per presentare un riepilogo didattico pulito senza log tecnici interni
+    det_model = DetectionModel(cfg=yaml_cfg, ch=3, nc=nc, verbose=False)
+
+    if verbose:
+        total_params = sum(p.numel() for p in det_model.parameters())
+        print(f"   -> Backbone: VGG-16 con pesi pre-addestrati ImageNet")
+        print(f"   -> Feature maps multi-scala: C3 (stride 8), C4 (stride 16), C5 (stride 32)")
+        print(f"   -> Detection Head: YOLO Detect ({nc} classi)")
+        print(f"   -> Parametri totali: {total_params:,}")
 
     # Creazione del checkpoint compatibile al 100% con Ultralytics Platform e CLI
     checkpoint = {
@@ -110,7 +122,6 @@ def build_and_export_detector(
     torch.save(checkpoint, str(output_pt_path))
     print(f"\n💾 Checkpoint Object Detector salvato con successo:")
     print(f"   -> Modello PyTorch: {output_pt_path}")
-    print(f"   -> Configurazione YAML: {yaml_path}")
 
     # Forward pass di test per verificare la perfetta operatività del modello
     print(f"\n🔍 Verifica forward pass di inferenza con input (1, 3, {imgsz}, {imgsz})...")
