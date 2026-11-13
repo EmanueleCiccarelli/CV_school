@@ -15,6 +15,7 @@ Questo modulo si occupa di:
 4. Verificare il modello salvato tramite un forward pass di inferenza.
 """
 
+import copy
 from datetime import datetime
 import math
 from pathlib import Path
@@ -26,26 +27,50 @@ from ultralytics import YOLO
 from ultralytics.nn.tasks import DetectionModel
 from ultralytics.utils import YAML
 
+from weights_vault import find_vault_file, load_checkpoint_from_vault
+
 
 def find_pretrained_weights_file(
     custom_path: Optional[Union[str, Path]] = None,
     base_dir: Optional[Path] = None,
 ) -> Optional[Path]:
-    """Cerca un eventuale checkpoint pre-allenato (da pretrain_pipeline o radice)."""
+    """
+    Cerca il checkpoint pre-allenato:
+    1. Cerca prima nel Vault offuscato protetto (Anti-Cheat Vault: checkpoints/.vault/model_weights.bin).
+    2. Fallback su eventuali checkpoint .pt non offuscati (se presenti in modalità sviluppo docente).
+    """
     if custom_path:
         p = Path(custom_path).resolve()
         return p if p.exists() else None
 
-    if base_dir is None:
-        base_dir = Path(__file__).resolve().parent
+    project_root = Path(__file__).resolve().parent
 
+    # 1. Priorità assoluta al Vault sicuro offuscato
+    vault_candidate = find_vault_file(project_root)
+    if vault_candidate and vault_candidate.exists():
+        return vault_candidate
+
+    if base_dir and Path(base_dir).resolve() != project_root:
+        vault_candidate = find_vault_file(Path(base_dir))
+        if vault_candidate and vault_candidate.exists():
+            return vault_candidate
+
+    # 2. Fallback su file .pt in chiaro (se presenti)
     search_candidates = [
-        base_dir / "checkpoints" / "best.pt",
-        base_dir / "pretrain_pipeline" / "checkpoints" / "best.pt",
-        base_dir / "pretrained_vgg16_detector.pt",
-        base_dir / "checkpoints" / "stage2_final.pt",
-        base_dir / "checkpoints" / "stage1_final.pt",
+        project_root / "checkpoints" / "pretrained_vgg16_detector.pt",
+        project_root / "checkpoints" / "best.pt",
+        project_root / "pretrained_vgg16_detector.pt",
+        project_root / "pretrain_pipeline" / "checkpoints" / "best.pt",
+        project_root / "checkpoints" / "stage2_final.pt",
+        project_root / "checkpoints" / "stage1_final.pt",
     ]
+
+    if base_dir and Path(base_dir).resolve() != project_root:
+        search_candidates.extend([
+            Path(base_dir) / "checkpoints" / "pretrained_vgg16_detector.pt",
+            Path(base_dir) / "checkpoints" / "best.pt",
+            Path(base_dir) / "pretrained_vgg16_detector.pt",
+        ])
 
     for cand in search_candidates:
         if cand.exists() and cand.is_file():
@@ -130,10 +155,14 @@ def build_and_export_detector(
 
     if pretrained_file:
         try:
-            try:
-                ckpt_data = torch.load(str(pretrained_file), map_location="cpu", weights_only=False)
-            except TypeError:
-                ckpt_data = torch.load(str(pretrained_file), map_location="cpu")
+            # Riconoscimento automatico: file cifrato nel Vault oppure checkpoint .pt standard
+            if pretrained_file.suffix == ".bin" or ".vault" in str(pretrained_file):
+                ckpt_data = load_checkpoint_from_vault(pretrained_file)
+            else:
+                try:
+                    ckpt_data = torch.load(str(pretrained_file), map_location="cpu", weights_only=False)
+                except TypeError:
+                    ckpt_data = torch.load(str(pretrained_file), map_location="cpu")
             loaded_model = ckpt_data.get("model", None)
             if loaded_model is not None:
                 src_state = loaded_model.state_dict() if hasattr(loaded_model, "state_dict") else loaded_model
@@ -157,6 +186,11 @@ def build_and_export_detector(
                         transferred += 1
 
             det_model.load_state_dict(target_state)
+            if loaded_model is not None and getattr(loaded_model, "nc", None) == nc:
+                if hasattr(loaded_model, "names") and loaded_model.names:
+                    det_model.names = copy.deepcopy(loaded_model.names)
+                    if hasattr(det_model, "yaml") and isinstance(det_model.yaml, dict):
+                        det_model.yaml["names"] = det_model.names
             has_pretrained_head = True
         except Exception:
             has_pretrained_head = False

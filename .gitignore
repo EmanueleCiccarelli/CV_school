@@ -1,5 +1,11 @@
 __pycache__/
 .vscode/
-checkpoints/
+checkpoints/*.pt
+checkpoints/runs_*/
+!checkpoints/.vault/
+!checkpoints/.vault/**
 runs/
 datasets/
+*.pt
+vgg16_detector.yaml
+
