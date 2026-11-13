@@ -201,6 +201,8 @@ def validate_vgg16_architecture(layers: List[nn.Module]) -> Tuple[bool, List[Dic
             discrepancies.append(f"padding: {act_p} (atteso {exp_p})")
         if act_s != 1:
             discrepancies.append(f"stride: {act_s} (atteso 1)")
+        if actual_conv.bias is None:
+            discrepancies.append("bias: False (atteso True)")
 
         if discrepancies:
             errors.append({

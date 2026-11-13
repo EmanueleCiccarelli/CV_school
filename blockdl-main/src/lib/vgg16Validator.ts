@@ -115,7 +115,9 @@ function getExpectedSpecsForLevel(levelId: number): ExpectedLayerSpec[] {
       checkStructure: (l) => {
         if (l.type === "Dense") {
           const units = Number(l.params.units);
-          return units === 1000 ? null : "wrong_units";
+          if (units !== 1000) return "wrong_units";
+          if (!isBiasValid(l.params.use_bias)) return "wrong_bias";
+          return null;
         }
         if (l.type === "Output") {
           const numClasses = Number(l.params.numClasses) || Number(l.params.units);
@@ -129,6 +131,62 @@ function getExpectedSpecsForLevel(levelId: number): ExpectedLayerSpec[] {
   return specs;
 }
 
+function isConvStrideValid(val: unknown): boolean {
+  if (val === undefined || val === null || val === "") return true; // default in BlockDL is (1,1)
+  const s = String(val).replace(/\s/g, "");
+  if (s === "(1,1)" || s === "1" || s === "(1)" || s === "1,1") return true;
+  const match = s.match(/^\(?(\d+),(\d+)\)?$/);
+  if (match) {
+    return Number(match[1]) === 1 && Number(match[2]) === 1;
+  }
+  const num = Number(s);
+  return num === 1;
+}
+
+function isConvPaddingValid(val: unknown): boolean {
+  if (val === undefined || val === null || val === "") return true; // default in BlockDL is same
+  const s = String(val).trim().toLowerCase();
+  return s === "same";
+}
+
+function isBiasValid(val: unknown): boolean {
+  if (val === undefined || val === null || val === "") return true; // default in BlockDL is true
+  if (typeof val === "boolean") return val;
+  const s = String(val).trim().toLowerCase();
+  return s === "true" || s === "1";
+}
+
+function isMaxPoolSizeValid(val: unknown): boolean {
+  if (val === undefined || val === null) return true; // default is (2,2)
+  const s = String(val).replace(/\s/g, "");
+  if (s === "") return false;
+  if (s === "(2,2)" || s === "2" || s === "(2)" || s === "2,2") return true;
+  const match = s.match(/^\(?(\d+),(\d+)\)?$/);
+  if (match) {
+    return Number(match[1]) === 2 && Number(match[2]) === 2;
+  }
+  const num = Number(s);
+  return num === 2;
+}
+
+function isMaxPoolStrideValid(val: unknown): boolean {
+  if (val === undefined || val === null || val === "") return true; // defaults to pool_size (2x2)
+  const s = String(val).replace(/\s/g, "");
+  if (s === "(2,2)" || s === "2" || s === "(2)" || s === "2,2") return true;
+  const match = s.match(/^\(?(\d+),(\d+)\)?$/);
+  if (match) {
+    return Number(match[1]) === 2 && Number(match[2]) === 2;
+  }
+  const num = Number(s);
+  return num === 2;
+}
+
+function isMaxPoolPaddingValid(val: unknown): boolean {
+  if (val === undefined || val === null || val === "") return true; // default is valid
+  const s = String(val).trim().toLowerCase();
+  return s === "valid";
+}
+
 function createConvSpec(block: string, name: string, expectedFilters: number): ExpectedLayerSpec {
   return {
     block,
@@ -139,9 +197,10 @@ function createConvSpec(block: string, name: string, expectedFilters: number): E
       const filters = Number(layer.params.filters);
       if (filters !== expectedFilters) return "wrong_filters";
       const kernel = String(layer.params.kernel_size || "").replace(/\s/g, "");
-      if (kernel !== "(3,3)" && kernel !== "3") return "wrong_kernel";
-      const padding = String(layer.params.padding || "");
-      if (padding !== "same") return "wrong_padding";
+      if (kernel !== "(3,3)" && kernel !== "3" && kernel !== "3,3") return "wrong_kernel";
+      if (!isConvStrideValid(layer.params.strides)) return "wrong_strides";
+      if (!isConvPaddingValid(layer.params.padding)) return "wrong_padding";
+      if (!isBiasValid(layer.params.use_bias)) return "wrong_bias";
       return null;
     },
     checkActivation: (layer) => {
@@ -158,8 +217,9 @@ function createMaxPoolSpec(block: string, name: string): ExpectedLayerSpec {
     name,
     checkStructure: (layer) => {
       if (layer.type !== "MaxPool2D") return "wrong_type";
-      const poolSize = String(layer.params.pool_size || "").replace(/\s/g, "");
-      if (poolSize !== "(2,2)" && poolSize !== "2" && poolSize !== "") return "wrong_pool_size";
+      if (!isMaxPoolSizeValid(layer.params.pool_size)) return "wrong_pool_size";
+      if (!isMaxPoolStrideValid(layer.params.strides)) return "wrong_strides";
+      if (!isMaxPoolPaddingValid(layer.params.padding)) return "wrong_padding";
       return null;
     },
   };
@@ -179,6 +239,7 @@ function createDenseSpec(
       if (layer.type !== "Dense") return "wrong_type";
       const units = Number(layer.params.units);
       if (units !== expectedUnits) return "wrong_units";
+      if (!isBiasValid(layer.params.use_bias)) return "wrong_bias";
       return null;
     },
     checkActivation: requiresRelu
@@ -357,6 +418,7 @@ export function validateVGG16Level(
   const expectedSpecs = getExpectedSpecsForLevel(levelId);
 
   let hasStructuralError = false;
+  let hasParameterError = false;
   let hasActivationError = false;
 
   // Check if chain length matches
@@ -380,11 +442,15 @@ export function validateVGG16Level(
         break;
       }
 
-      // Check structure (filters, kernel, padding, pool_size, units, rate)
+      // Check structure & parameters (filters, kernel, strides, padding, use_bias, pool_size, units, rate)
       const structErr = spec.checkStructure(actual);
       if (structErr) {
-        hasStructuralError = true;
-        break;
+        if (structErr === "wrong_type") {
+          hasStructuralError = true;
+          break;
+        } else {
+          hasParameterError = true;
+        }
       }
 
       // Check activation
@@ -398,26 +464,44 @@ export function validateVGG16Level(
   }
 
   // 5. Evaluate and report with appropriate educational feedback:
-  // RULE: If there is ANY structural/layer error -> report only generic error and tell them to recheck diagram!
+  // A. Structural error: wrong layer count, wrong types, missing blocks
   if (hasStructuralError) {
     return {
       isValid: false,
-      title: "Verifica Fallita",
-      message: "La configurazione della rete non corrisponde all'architettura VGG16 per questo livello. Ricontrolla attentamente il diagramma di riferimento e verifica i blocchi e i parametri che hai impostato fino ad ora.",
+      title: "Verifica Fallita: Struttura Rete Non Valida",
+      message:
+        "La configurazione della rete non corrisponde all'architettura VGG16 per questo livello. Ricontrolla attentamente il diagramma di riferimento e verifica i blocchi che hai inserito sul canvas.",
       details: [
         "Confronta la struttura costruita sul canvas con la reference visiva della VGG16 (apri 'Guida & Blueprint').",
-        "Verifica che il numero di blocchi, il loro tipo e i parametri corrispondano alla sezione evidenziata nel diagramma.",
+        "Verifica che il numero di blocchi, il loro tipo e l'ordine sequenziale corrispondano alla sezione evidenziata nel diagramma.",
       ],
       blockName,
     };
   }
 
-  // RULE: If and ONLY IF the activation function is wrong (everything else is correct) -> give the activation hint!
+  // B. Parameter error: structure is correct, but parameters inside blocks are wrong!
+  if (hasParameterError) {
+    return {
+      isValid: false,
+      title: "Verifica Fallita: Parametri Non Corretti",
+      message:
+        "La struttura della rete è complessivamente corretta, ma i parametri dei vari blocchi sono sbagliati. Controlla in rete i parametri corretti per una VGG16.",
+      details: [
+        "La sequenza e la tipologia di blocchi che hai inserito sul canvas sono corrette per questo livello.",
+        "Tuttavia, uno o più parametri interni ai blocchi (come dimensioni, passo/stride, padding o bias) non corrispondono alla specifica originale della VGG16.",
+        "Effettua una ricerca in rete per verificare i parametri esatti previsti per i layer di una VGG16 e correggili nei rispettivi blocchi sul canvas.",
+      ],
+      blockName,
+    };
+  }
+
+  // C. Activation error: structure & parameters are right, but activation is wrong
   if (hasActivationError) {
     return {
       isValid: false,
       title: "Funzione di Attivazione Non Valida",
-      message: "Attenzione: le funzioni di attivazione lineari (o assenti) non sono sufficienti per permettere a una rete neurale profonda come la VGG16 di apprendere pattern complessi.",
+      message:
+        "Attenzione: le funzioni di attivazione lineari (o assenti) non sono sufficienti per permettere a una rete neurale profonda come la VGG16 di apprendere pattern complessi.",
       details: [
         "Una sequenza di strati puramente lineari collasserebbe matematicamente in un singolo strato lineare, perdendo tutta la capacità espressiva.",
         "Fai una ricerca online (es. 'VGG16 activation function') per scoprire quale specifica funzione di attivazione non-lineare utilizza l'architettura VGG16 e impostala nei blocchi convoluzionali o densi (puoi anche consultare la legenda della reference visiva).",
