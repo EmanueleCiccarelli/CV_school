@@ -1,0 +1,41 @@
+# ==============================================================================
+# Configurazione Pre-Training Pipeline: VGG16-BN + Multi-Scale Detect Head
+# (Compatibile al 100% con Ultralytics Platform e CLI yolo train)
+# ==============================================================================
+
+# Parametri Architetturali
+model:
+  nc: 80                           # Numero classi (80 per COCO predefinito, 20 per Pascal VOC)
+  imgsz: 640                       # Risoluzione standard Ultralytics detection
+
+# Parametri di Addestramento a Due Stadi
+training:
+  data: "coco.yaml"                # Default: MS COCO ("coco.yaml"); alternativa rapida: "VOC.yaml" o "coco8.yaml"
+  device: "cuda"                   # "cuda" o "cpu" (fallback automatico)
+  batch_size: 16                   # Dimensione batch
+  workers: 4                       # Thread dataloader
+  use_amp: true                    # Mixed precision FP16 (autocast)
+
+  # Stage 1: Head Warm-up (5-10 epoche)
+  # Backbone [0:44] completamente congelato con BatchNorm in .eval()
+  # Addestramento della sola testa Detect
+  stage1:
+    enabled: true
+    epochs: 5
+    lr0: 0.001
+    weight_decay: 0.0001
+
+  # Stage 2: Partial Backbone Fine-Tuning (20-30 epoche)
+  # Blocchi conv1-conv4 [0:34] congelati con BatchNorm in .eval()
+  # Blocco conv5 [34:44] e testa Detect scongelati con learning rate differenziali
+  stage2:
+    enabled: true
+    epochs: 25
+    lr0_backbone: 0.00005          # 5e-5 per conv5
+    lr0_head: 0.0001               # 1e-4 per detect head
+    weight_decay: 0.0001
+    lrf: 0.01                      # Fattore finale (1e-6) con Cosine Annealing
+
+# Salvataggio Checkpoint
+checkpoints:
+  save_dir: "./checkpoints"
