@@ -125,6 +125,14 @@ function getExpectedSpecsForLevel(levelId: number): ExpectedLayerSpec[] {
         }
         return "wrong_type";
       },
+      checkActivation: (layer) => {
+        if (layer.type === "Dense") {
+          const act = String(layer.activation || layer.params.activation || "linear").toLowerCase();
+          // L'ultimo layer denso (1000) deve avere attivazione 'none', 'linear', '' o 'softmax', NON 'relu'
+          return act === "linear" || act === "none" || act === "" || act === "softmax";
+        }
+        return true;
+      },
     });
   }
 
@@ -466,46 +474,82 @@ export function validateVGG16Level(
   // 5. Evaluate and report with appropriate educational feedback:
   // A. Structural error: wrong layer count, wrong types, missing blocks
   if (hasStructuralError) {
+    const isLevel6 = levelId === 6;
+    const dropoutCount = normalizedLayers.filter((l) => l.type === "Dropout").length;
+    const hasDense = normalizedLayers.some((l) => l.type === "Dense");
+
+    const details = [
+      "Confronta la struttura costruita sul canvas con la reference visiva della VGG16 (apri 'Guida & Blueprint').",
+      "Verifica che il numero di blocchi, il loro tipo e l'ordine sequenziale corrispondano alla sezione evidenziata nel diagramma.",
+    ];
+
+    // Hint educativo mirato se mancano i Dropout nel classificatore (richiesto dal docente)
+    if (isLevel6 && hasDense && dropoutCount < 2) {
+      details.push(
+        "💡 Suggerimento (Overfitting): a causa dell'enorme numero di connessioni nei layer lineari della VGG16, viene inserita una specifica tecnica tra uno strato e l'altro per evitare che la rete overfitta. Fai una ricerca su cosa viene messo soprattutto nei layer lineari per contrastare l'overfitting!"
+      );
+    }
+
+    // Hint educativo mirato sulla relazione tra Layer Dense e Blocco Output (richiesto dal docente)
+    if (isLevel6 && hasDense) {
+      details.push(
+        "💡 Suggerimento (Layer Finale & Output): in BlockDL il collegamento tra un layer Dense e un blocco Output con un determinato numero di classi rappresenta già di per sé una trasformazione lineare (senza attivazione) verso le classi finali. Puoi quindi completare la testata sia con 3 blocchi Dense (l'ultimo da 1000 unità senza attivazione), sia con 2 blocchi Dense (4096) collegati direttamente a un blocco Output da 1000 classi."
+      );
+    }
+
     return {
       isValid: false,
       title: "Verifica Fallita: Struttura Rete Non Valida",
       message:
         "La configurazione della rete non corrisponde all'architettura VGG16 per questo livello. Ricontrolla attentamente il diagramma di riferimento e verifica i blocchi che hai inserito sul canvas.",
-      details: [
-        "Confronta la struttura costruita sul canvas con la reference visiva della VGG16 (apri 'Guida & Blueprint').",
-        "Verifica che il numero di blocchi, il loro tipo e l'ordine sequenziale corrispondano alla sezione evidenziata nel diagramma.",
-      ],
+      details,
       blockName,
     };
   }
 
   // B. Parameter error: structure is correct, but parameters inside blocks are wrong!
   if (hasParameterError) {
+    const details = [
+      "La sequenza e la tipologia di blocchi che hai inserito sul canvas sono corrette per questo livello.",
+      "Tuttavia, uno o più parametri interni ai blocchi (come dimensioni, passo/stride, padding o bias) non corrispondono alla specifica originale della VGG16.",
+      "Effettua una ricerca in rete per verificare i parametri esatti previsti per i layer di una VGG16 e correggili nei rispettivi blocchi sul canvas.",
+    ];
+
+    if (levelId === 6) {
+      details.push(
+        "💡 Suggerimento (Dimensioni Output): la VGG-16 originale classifica le 1000 classi di ImageNet. Di conseguenza, l'ultimo layer denso deve proiettare verso 1000 unità (oppure connettersi a un blocco Output con 1000 classi). Ricorda che il collegamento verso un blocco Output da 1000 classi costituisce di fatto l'ultimo layer lineare senza attivazione!"
+      );
+    }
+
     return {
       isValid: false,
       title: "Verifica Fallita: Parametri Non Corretti",
       message:
         "La struttura della rete è complessivamente corretta, ma i parametri dei vari blocchi sono sbagliati. Controlla in rete i parametri corretti per una VGG16.",
-      details: [
-        "La sequenza e la tipologia di blocchi che hai inserito sul canvas sono corrette per questo livello.",
-        "Tuttavia, uno o più parametri interni ai blocchi (come dimensioni, passo/stride, padding o bias) non corrispondono alla specifica originale della VGG16.",
-        "Effettua una ricerca in rete per verificare i parametri esatti previsti per i layer di una VGG16 e correggili nei rispettivi blocchi sul canvas.",
-      ],
+      details,
       blockName,
     };
   }
 
   // C. Activation error: structure & parameters are right, but activation is wrong
   if (hasActivationError) {
+    const isLevel6 = levelId === 6;
+    const details = isLevel6
+      ? [
+          "I primi due strati densi (4096) della VGG16 richiedono l'attivazione non-lineare ReLU.",
+          "Tuttavia, l'ultimo strato di classificazione (1000 classi) produce i logit grezzi per il calcolo della loss e NON deve avere ReLU (lasciare attivazione lineare/none).",
+        ]
+      : [
+          "Una sequenza di strati puramente lineari collasserebbe matematicamente in un singolo strato lineare, perdendo tutta la capacità espressiva.",
+          "Fai una ricerca online (es. 'VGG16 activation function') per scoprire quale specifica funzione di attivazione non-lineare utilizza l'architettura VGG16 e impostala nei blocchi convoluzionali o densi (puoi anche consultare la legenda della reference visiva).",
+        ];
+
     return {
       isValid: false,
       title: "Funzione di Attivazione Non Valida",
       message:
-        "Attenzione: le funzioni di attivazione lineari (o assenti) non sono sufficienti per permettere a una rete neurale profonda come la VGG16 di apprendere pattern complessi.",
-      details: [
-        "Una sequenza di strati puramente lineari collasserebbe matematicamente in un singolo strato lineare, perdendo tutta la capacità espressiva.",
-        "Fai una ricerca online (es. 'VGG16 activation function') per scoprire quale specifica funzione di attivazione non-lineare utilizza l'architettura VGG16 e impostala nei blocchi convoluzionali o densi (puoi anche consultare la legenda della reference visiva).",
-      ],
+        "Attenzione: controlla le funzioni di attivazione impostate nei layer.",
+      details,
       blockName,
     };
   }
