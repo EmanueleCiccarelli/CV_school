@@ -55,11 +55,6 @@ def find_target_file(explicit_file: Optional[str] = None, base_dir: Optional[Pat
                     "convert_vgg_to_detector.py",
                     "vgg_validator.py",
                     "detector_builder.py",
-                    "convert_to_ultralytics.py",
-                    "main.py",
-                    "prepare_mnist_1_7.py",
-                    "prepare_mnist_color_1_7.py",
-                    "predict.py",
                     "reset_environment.py",
                     "weights_vault.py",
                 }
