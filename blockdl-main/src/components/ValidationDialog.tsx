@@ -15,6 +15,7 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
+  Sliders,
 } from "lucide-react";
 import {
   Dialog,
@@ -349,6 +350,52 @@ export function ValidationDialog({
                     </a>
                   </div>
 
+                  {/* Fine-Tuning Guidance: Parameters to Freeze */}
+                  <div className="p-4 bg-indigo-50/80 border border-indigo-200 rounded-2xl space-y-3 shadow-2xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-indigo-950 flex items-center gap-1.5">
+                        <Sliders className="h-4 w-4 text-indigo-600" />
+                        Guida al Fine-Tuning: Quanti parametri bloccare?
+                      </span>
+                      <span className="text-[10px] bg-indigo-200/90 text-indigo-900 font-bold px-2 py-0.5 rounded-full uppercase tracking-wider font-mono">
+                        freeze: 1
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                      <div className="p-3 bg-white rounded-xl border border-indigo-100 space-y-1">
+                        <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                          Parametri da Congelare (Backbone)
+                        </div>
+                        <div className="text-base font-bold text-indigo-700">
+                          14,723,136 <span className="text-xs font-normal text-slate-500">(72.3%)</span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 leading-snug">
+                          Le feature convoluzionali VGG pre-addestrate su ImageNet. Imposta <code className="bg-indigo-100/80 px-1 py-0.5 rounded font-mono font-bold text-indigo-900">freeze: 1</code> in <em>Advanced Settings</em> per proteggerle!
+                        </p>
+                      </div>
+
+                      <div className="p-3 bg-white rounded-xl border border-indigo-100 space-y-1">
+                        <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                          Parametri da Addestrare (Head)
+                        </div>
+                        <div className="text-base font-bold text-emerald-700">
+                          5,644,480 <span className="text-xs font-normal text-slate-500">(27.7%)</span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 leading-snug">
+                          La YOLO Detect Head: si addestrerà per riconoscere le classi del tuo dataset e calibrare i bounding box.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-indigo-100/60 p-2.5 rounded-xl text-[11px] text-indigo-950 flex items-start gap-2">
+                      <span className="text-sm">🎮</span>
+                      <div className="leading-relaxed">
+                        <strong>Ora tocca a te sperimentare:</strong> Imposta <code className="font-mono bg-white/90 px-1 py-0.5 rounded text-indigo-900 font-bold">freeze: 1</code> e gioca liberamente con gli altri iperparametri (numero di epoche, learning rate iniziale <code className="font-mono">lr0</code>, batch size, ottimizzatore) su Ultralytics Platform per trovare la configurazione migliore!
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Ultralytics Training Instructions */}
                   <div className="border border-slate-200 rounded-2xl overflow-hidden bg-slate-900 text-slate-100">
                     <div className="px-4 py-2.5 bg-slate-800 border-b border-slate-700 flex items-center justify-between flex-wrap gap-2">
@@ -409,17 +456,17 @@ export function ValidationDialog({
                           <div className="relative group bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs leading-relaxed text-emerald-400">
                             {activeOs === "bash" && (
                               <pre className="overflow-x-auto whitespace-pre-wrap">
-                                {`export ULTRALYTICS_API_KEY="INSERISCI_LA_TUA_API_KEY"\nyolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 project=tuo-progetto`}
+                                {`export ULTRALYTICS_API_KEY="INSERISCI_LA_TUA_API_KEY"\nyolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 freeze=1 project=tuo-progetto`}
                               </pre>
                             )}
                             {activeOs === "powershell" && (
                               <pre className="overflow-x-auto whitespace-pre-wrap">
-                                {`$env:ULTRALYTICS_API_KEY="INSERISCI_LA_TUA_API_KEY"\nyolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 project=tuo-progetto`}
+                                {`$env:ULTRALYTICS_API_KEY="INSERISCI_LA_TUA_API_KEY"\nyolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 freeze=1 project=tuo-progetto`}
                               </pre>
                             )}
                             {activeOs === "cmd" && (
                               <pre className="overflow-x-auto whitespace-pre-wrap">
-                                {`set ULTRALYTICS_API_KEY=INSERISCI_LA_TUA_API_KEY\nyolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 project=tuo-progetto`}
+                                {`set ULTRALYTICS_API_KEY=INSERISCI_LA_TUA_API_KEY\nyolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 freeze=1 project=tuo-progetto`}
                               </pre>
                             )}
 
@@ -427,10 +474,10 @@ export function ValidationDialog({
                               onClick={() => {
                                 const cmd =
                                   activeOs === "bash"
-                                    ? `export ULTRALYTICS_API_KEY="INSERISCI_LA_TUA_API_KEY"\nyolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 project=tuo-progetto`
+                                    ? `export ULTRALYTICS_API_KEY="INSERISCI_LA_TUA_API_KEY"\nyolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 freeze=1 project=tuo-progetto`
                                     : activeOs === "powershell"
-                                    ? `$env:ULTRALYTICS_API_KEY="INSERISCI_LA_TUA_API_KEY"\nyolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 project=tuo-progetto`
-                                    : `set ULTRALYTICS_API_KEY=INSERISCI_LA_TUA_API_KEY\nyolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 project=tuo-progetto`;
+                                    ? `$env:ULTRALYTICS_API_KEY="INSERISCI_LA_TUA_API_KEY"\nyolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 freeze=1 project=tuo-progetto`
+                                    : `set ULTRALYTICS_API_KEY=INSERISCI_LA_TUA_API_KEY\nyolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 freeze=1 project=tuo-progetto`;
                                 handleCopy(cmd, "cloud");
                               }}
                               className="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors cursor-pointer"
@@ -447,12 +494,12 @@ export function ValidationDialog({
                       ) : (
                         <div className="relative group bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-xs leading-relaxed text-emerald-400">
                           <pre className="overflow-x-auto whitespace-pre-wrap">
-                            {`yolo train model=vgg16_detector.pt data=coco8.yaml task=detect imgsz=640 epochs=10`}
+                            {`yolo train model=vgg16_detector.pt data=coco8.yaml task=detect imgsz=640 freeze=1 epochs=15`}
                           </pre>
                           <button
                             onClick={() =>
                               handleCopy(
-                                `yolo train model=vgg16_detector.pt data=coco8.yaml task=detect imgsz=640 epochs=10`,
+                                `yolo train model=vgg16_detector.pt data=coco8.yaml task=detect imgsz=640 freeze=1 epochs=15`,
                                 "local"
                               )
                             }

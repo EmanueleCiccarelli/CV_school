@@ -63,28 +63,53 @@ Nel browser (all'indirizzo `http://localhost:5173`):
 
 ### 2. Addestramento dell'Object Detector su Ultralytics
 
+#### 💡 Guida al Fine-Tuning: Quanti parametri bloccare (`freeze`)?
+
+Quando si esegue il **fine-tuning** su un nuovo dataset, la rete non deve essere addestrata tutta da zero:
+
+* **Riepilogo dei parametri del modello:**
+  * **Parametri totali:** `20,367,616` (~20.4M)
+  * **Backbone VGG-16 (`model.0`):** `14,723,136` parametri (**72.3%** dell'intera rete)
+  * **YOLO Detect Head (`model.4`):** `5,644,480` parametri (**27.7%** dell'intera rete)
+
+* **Il numero ideale di layer da bloccare (`freeze`):**
+  Nel riquadro **"Advanced Settings"** di Ultralytics Platform (o aggiungendo `freeze=1` da riga di comando), impostare:
+  ```yaml
+  freeze: 1
+  ```
+  * **Cosa fa:** blocca il layer iniziale (`model.0`), congelando tutti i **14,723,136 parametri** del backbone VGG-16 (le feature visive già apprese da ImageNet). In questo modo, l'addestramento si concentra unicamente sui **5,644,480 parametri** della testa di rilevamento YOLO!
+
+* **🎮 Spazio alla sperimentazione: gioca con gli iperparametri!**
+  Gli studenti sono incoraggiati a provare diverse combinazioni nella finestra di training:
+  * **`epochs`**: prova a impostare 20–30 epoche invece delle 100 predefinite di default.
+  * **`lr0` (Learning Rate Iniziale)**: prova a ridurlo da `0.01` a `0.001` per osservare come cambia la stabilità della curva di perdita (*loss*).
+  * **`batch`**: sperimenta con batch size di 8, 16 oppure `-1` (calcolo automatico in base alla VRAM).
+  * **Data Augmentation**: sperimenta attivando o disattivando mosaic, flip o variazioni cromatiche (HSV).
+
+---
+
 #### Su Ultralytics Platform (Cloud):
 * **Su Ubuntu / Linux (Bash):**
   ```bash
   export ULTRALYTICS_API_KEY="tua_api_key_ultralytics"
-  yolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 project=tuo-progetto
+  yolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 freeze=1 project=tuo-progetto
   ```
 
 * **Su Windows (PowerShell):**
   ```powershell
   $env:ULTRALYTICS_API_KEY="tua_api_key_ultralytics"
-  yolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 project=tuo-progetto
+  yolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 freeze=1 project=tuo-progetto
   ```
 
 * **Su Windows (Prompt dei comandi CMD):**
   ```cmd
   set ULTRALYTICS_API_KEY=tua_api_key_ultralytics
-  yolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 project=tuo-progetto
+  yolo train model=vgg16_detector.pt data=ul://tuo-dataset task=detect imgsz=640 freeze=1 project=tuo-progetto
   ```
 
 #### In locale offline (es. con dataset di test coco8):
 ```bash
-yolo train model=vgg16_detector.pt data=coco8.yaml task=detect imgsz=640 epochs=10
+yolo train model=vgg16_detector.pt data=coco8.yaml task=detect imgsz=640 freeze=1 epochs=15
 ```
 
 ---

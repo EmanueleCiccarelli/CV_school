@@ -60,6 +60,8 @@ def find_target_file(explicit_file: Optional[str] = None, base_dir: Optional[Pat
                     "prepare_mnist_1_7.py",
                     "prepare_mnist_color_1_7.py",
                     "predict.py",
+                    "reset_environment.py",
+                    "weights_vault.py",
                 }
                 candidates = [c for c in candidates if c.name not in system_names]
 
@@ -76,28 +78,43 @@ def print_platform_instructions(output_pt: Path, nc: int, imgsz: int):
     print("  COME AVVIARE L'ADDESTRAMENTO SU ULTRALYTICS PLATFORM")
     print("=" * 75)
     print("Il tuo modello VGG-16 con testa YOLO è pronto e compatibile al 100%!")
-    print("Caricalo su Ultralytics Platform oppure addestralo in locale con i comandi sotto:\n")
+    print(f"\n📊 RIEPILOGO PARAMETRI DEL MODELLO:")
+    print(f"   • Parametri Totali:               20,367,616 (~20.4M)")
+    print(f"   • Parametri Backbone VGG-16 (0):  14,723,136 (72.3%) -> da bloccare")
+    print(f"   • Parametri YOLO Detect Head (4):  5,644,480 (27.7%) -> da addestrare")
+    print("\n💡 CONSIGLIO PER IL FINE-TUNING (Ultralytics Platform / Advanced Settings):")
+    print("   -> NUMERO IDEALE DI PARAMETRI DA CONGELARE: freeze: 1")
+    print("      Imposta 'freeze: 1' nelle Impostazioni Avanzate per bloccare i 14.7M di parametri")
+    print("      del backbone VGG-16 e addestrare solo i 5.6M della testa YOLO Detect.")
+    print("   -> ORA TOCCA A TE SPERIMENTARE!")
+    print("      Gioca liberamente con gli altri iperparametri (epochs, lr0, batch, optimizer)")
+    print("      per trovare la combinazione migliore per il tuo dataset.\n")
 
-    print("[1] Con sincronizzazione su Ultralytics Platform (Cloud):")
+    print("[1] Da interfaccia grafica Web (Ultralytics Platform / HUB):")
+    print("    1. Carica il modello 'vgg16_detector.pt' e seleziona il tuo dataset.")
+    print("    2. Espandi 'Advanced Settings' e imposta freeze: 1.")
+    print("    3. Sperimenta con epoche (es. 20-30) e learning rate iniziale (es. lr0: 0.001)!\n")
+
+    print("[2] Con sincronizzazione su Ultralytics Platform (Cloud CLI):")
     print("    • Ubuntu / Linux (Bash):")
     print(f'      export ULTRALYTICS_API_KEY="INSERISCI_LA_TUA_API_KEY"')
-    print(f'      yolo train model={pt_name} data=ul://tuo-dataset task=detect imgsz={imgsz} project=tuo-progetto\n')
+    print(f'      yolo train model={pt_name} data=ul://tuo-dataset task=detect imgsz={imgsz} freeze=1 project=tuo-progetto\n')
 
     print("    • Windows (PowerShell):")
     print(f'      $env:ULTRALYTICS_API_KEY="INSERISCI_LA_TUA_API_KEY"')
-    print(f'      yolo train model={pt_name} data=ul://tuo-dataset task=detect imgsz={imgsz} project=tuo-progetto\n')
+    print(f'      yolo train model={pt_name} data=ul://tuo-dataset task=detect imgsz={imgsz} freeze=1 project=tuo-progetto\n')
 
     print("    • Windows (Prompt dei Comandi - CMD):")
     print(f'      set ULTRALYTICS_API_KEY=INSERISCI_LA_TUA_API_KEY')
-    print(f'      yolo train model={pt_name} data=ul://tuo-dataset task=detect imgsz={imgsz} project=tuo-progetto\n')
+    print(f'      yolo train model={pt_name} data=ul://tuo-dataset task=detect imgsz={imgsz} freeze=1 project=tuo-progetto\n')
 
-    print("[2] Addestramento rapido in locale (es. dataset di prova coco8):")
-    print(f"      yolo train model={pt_name} data=coco8.yaml task=detect imgsz={imgsz} epochs=10\n")
+    print("[3] Addestramento rapido in locale (es. dataset di prova coco8):")
+    print(f"      yolo train model={pt_name} data=coco8.yaml task=detect imgsz={imgsz} freeze=1 epochs=15\n")
 
-    print("[3] Addestramento tramite script Python:")
+    print("[4] Addestramento tramite script Python:")
     print("      from ultralytics import YOLO")
     print(f'      model = YOLO("{pt_name}")')
-    print(f'      model.train(data="coco8.yaml", task="detect", epochs=10, imgsz={imgsz})')
+    print(f'      model.train(data="coco8.yaml", task="detect", freeze=1, epochs=15, imgsz={imgsz})')
     print("=" * 75 + "\n")
 
 
