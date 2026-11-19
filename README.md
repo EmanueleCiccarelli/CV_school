@@ -17,12 +17,14 @@ VGG for school/
 │   ├── src/                     # Sorgenti React + Canvas + Validatore integrato VGG-16
 │   └── vite-detector-plugin.ts  # Plugin Vite con API per lanciare in automatico la conversione .pt
 │
+├── VGG16_Ultralytics_Colab_Training.ipynb # Notebook Google Colab per fine-tuning guidato con TPU/GPU
+├── colab_assets/                # Screenshot e risorse visive per la guida Colab
 ├── convert_vgg_to_detector.py   # Script coordinatore principale: valida BlockDL e genera il detector
 ├── vgg_validator.py             # Modulo di validazione rigorosa VGG-16 e diagnostica didattica BlockDL
 ├── detector_builder.py          # Costruttore dell'Object Detector Ultralytics (ImageNet + YOLO Detect Head)
 ├── weights_vault.py             # Sistema di protezione e packaging Anti-Cheat per i pesi pre-allenati
 ├── reset_environment.py         # Script per il reset totale e pulizia anti-cheat dell'ambiente
-├── requirements.txt             # Dipendenze necessarie (PyTorch, Ultralytics, PyYAML)
+├── requirements.txt             # Dipendenze Python (PyTorch, Ultralytics, PyYAML)
 ├── README.md                    # Questa guida
 │
 └── network to convert/          # Cartella dove viene salvato il file .py esportato da BlockDL
@@ -31,11 +33,34 @@ VGG for school/
 
 ---
 
+## 🛠️ Prerequisiti & Setup Iniziale (Nuova Macchina)
+
+Quando si configura il progetto per la prima volta su una nuova macchina (es. PC del laboratorio o computer dello studente), è necessario preparare sia l'ambiente **Python** sia l'ambiente **Node.js**:
+
+### 1. Setup Dipendenze Python
+Assicurarsi di avere **Python 3.9+** installato. Dalla cartella principale del progetto (`VGG for school`):
+```bash
+pip install -r requirements.txt
+```
+*(Installa PyTorch, Ultralytics e PyYAML necessari per la validazione della rete e la conversione in `.pt`).*
+
+### 2. Setup Node.js & npm (Frontend BlockDL)
+La web app didattica a 6 livelli BlockDL è un'applicazione React/Vite e richiede **Node.js**:
+1. Se Node.js non è installato sul sistema, scaricarlo e installarlo da [nodejs.org](https://nodejs.org/) (consigliata versione **LTS 18.x o superiore**; include automaticamente `npm`).
+2. Entrare nella cartella del frontend ed eseguire l'installazione dei pacchetti npm (**da fare solo la prima volta**):
+   ```bash
+   cd blockdl-main
+   npm install
+   ```
+3. Una volta completato `npm install`, l'ambiente è pronto e non sarà più necessario rieseguirlo.
+
+---
+
 ## 🚀 Da VGG-16 (BlockDL) a YOLO Object Detector
 
 ### 1. Avvio dell'Ambiente Interattivo (BlockDL Progressive Sandbox)
 
-Gli studenti avviano l'ambiente interattivo guidato a 6 livelli:
+Gli studenti avviano l'ambiente interattivo guidato a 6 livelli con:
 
 ```bash
 cd blockdl-main
@@ -105,6 +130,11 @@ Quando si esegue il **fine-tuning** su un nuovo dataset, la rete non deve essere
 ```bash
 yolo train model=vgg16_detector.pt data=coco8.yaml task=detect imgsz=640 freeze=1 epochs=15
 ```
+
+#### Su Google Colab (con accelerazione TPU v5e / GPU T4):
+È disponibile il notebook interattivo pre-configurato **`VGG16_Ultralytics_Colab_Training.ipynb`**:
+* **Guida visiva integrata**: spiega agli studenti passo-passo come attivare la TPU in Colab e impostare `freeze: 1` nelle Advanced Settings di Ultralytics HUB.
+* **Addestramento cloud collegato a HUB**: consente di eseguire il fine-tuning direttamente su Colab senza saturare la memoria del PC locale, con streaming delle metriche e salvataggio dei pesi direttamente sulla dashboard Ultralytics HUB.
 
 ---
 
