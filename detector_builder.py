@@ -102,7 +102,10 @@ def get_vgg16_detector_yaml(nc: int = 80) -> Dict[str, Any]:
         ],
         "head": [
             # Layer 4: Detect Head collegata direttamente a C3, C4, C5 (senza neck FPN/PAN)
-            [[1, 2, 3], 1, "Detect", [nc]],
+            # Utilizziamo la stringa dinamica "nc" invece di un numero fisso in modo che
+            # Ultralytics Platform possa adattare automaticamente la testa al numero di classi
+            # di qualsiasi custom dataset degli studenti senza crashare (auto-adaptive transfer learning).
+            [[1, 2, 3], 1, "Detect", ["nc"]],
         ],
     }
 

@@ -41,7 +41,8 @@ def get_vgg16_detector_yaml(nc: int = 80) -> Dict[str, Any]:
             [0, 1, "Index", [512, 44]],  # C5 (stride 32, 512 ch)
         ],
         "head": [
-            [[1, 2, 3], 1, "Detect", [nc]],
+            # Utilizziamo la stringa dinamica "nc" invece del numero fisso [nc] per auto-adattamento
+            [[1, 2, 3], 1, "Detect", ["nc"]],
         ],
     }
 
