@@ -19,6 +19,7 @@ VGG for school/
 │
 ├── VGG16_Ultralytics_Colab_Training.ipynb # Notebook Google Colab per fine-tuning guidato con TPU/GPU
 ├── colab_assets/                # Screenshot e risorse visive per la guida Colab
+├── run.py                       # Mini-server locale & launcher Python (zero Node.js richiesto)
 ├── convert_vgg_to_detector.py   # Script coordinatore principale: valida BlockDL e genera il detector
 ├── vgg_validator.py             # Modulo di validazione rigorosa VGG-16 e diagnostica didattica BlockDL
 ├── detector_builder.py          # Costruttore dell'Object Detector Ultralytics (ImageNet + YOLO Detect Head)
@@ -33,38 +34,40 @@ VGG for school/
 
 ---
 
-## 🛠️ Prerequisiti & Setup Iniziale (Nuova Macchina)
+## 🛠️ Prerequisiti & Avvio Immediato (Zero Node.js per gli studenti)
 
-Quando si configura il progetto per la prima volta su una nuova macchina (es. PC del laboratorio o computer dello studente), è necessario preparare sia l'ambiente **Python** sia l'ambiente **Node.js**:
+L'interfaccia grafica didattica BlockDL è ora **pre-compilata** all'interno del progetto.  
+**Agli studenti serve unicamente Python**: non è necessario installare Node.js né eseguire `npm install` o comandi Node!
 
-### 1. Setup Dipendenze Python
+### 1. Installazione Dipendenze Python
 Assicurarsi di avere **Python 3.9+** installato. Dalla cartella principale del progetto (`VGG for school`):
 ```bash
 pip install -r requirements.txt
 ```
 *(Installa PyTorch, Ultralytics e PyYAML necessari per la validazione della rete e la conversione in `.pt`).*
 
-### 2. Setup Node.js & npm (Frontend BlockDL)
-La web app didattica a 6 livelli BlockDL è un'applicazione React/Vite e richiede **Node.js**:
-1. Se Node.js non è installato sul sistema, scaricarlo e installarlo da [nodejs.org](https://nodejs.org/) (consigliata versione **LTS 18.x o superiore**; include automaticamente `npm`).
-2. Entrare nella cartella del frontend ed eseguire l'installazione dei pacchetti npm (**da fare solo la prima volta**):
-   ```bash
-   cd blockdl-main
-   npm install
-   ```
-3. Una volta completato `npm install`, l'ambiente è pronto e non sarà più necessario rieseguirlo.
+### 2. Avvio con Singolo Comando
+Dalla cartella principale del progetto, avviare il laboratorio didattico con:
+```bash
+python run.py
+```
+* **Apertura automatica**: il browser predefinito si apre direttamente su `http://localhost:5173`.
+* **Zero dipendenze esterne**: il server interno Python (basato sulla libreria standard) serve i file statici del frontend e gestisce le API locali di validazione e generazione automatica dell'Object Detector (`vgg16_detector.pt`).
+* Per arrestare il server è sufficiente premere `Ctrl+C` nel terminale.
+
+> ℹ️ **Nota per docenti o sviluppatori (opzionale):**  
+> Se si desidera apportare modifiche al codice sorgente React/TypeScript del frontend, la cartella `blockdl-main/` contiene tutti i sorgenti originali. In quel caso (e solo per sviluppo frontend) è possibile usare Node.js con `cd blockdl-main && npm install` e lanciare `npm run dev` oppure ricompilare con `npm run build`.
 
 ---
 
 ## 🚀 Da VGG-16 (BlockDL) a YOLO Object Detector
 
-### 1. Avvio dell'Ambiente Interattivo (BlockDL Progressive Sandbox)
+### 1. Costruzione Interattiva (BlockDL Progressive Sandbox)
 
-Gli studenti avviano l'ambiente interattivo guidato a 6 livelli con:
+Gli studenti avviano il laboratorio con:
 
 ```bash
-cd blockdl-main
-npm run dev
+python run.py
 ```
 
 Nel browser (all'indirizzo `http://localhost:5173`):

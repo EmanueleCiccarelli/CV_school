@@ -83,7 +83,7 @@ export function ValidationDialog({
       setErrorMessage(
         err instanceof Error
           ? err.message
-          : "Impossibile contattare il server locale per la conversione. Assicurati che 'npm run dev' sia attivo."
+          : "Impossibile contattare il server locale per la conversione. Assicurati che il server Python ('python run.py') sia attivo."
       );
     }
   }, [generatedCode]);

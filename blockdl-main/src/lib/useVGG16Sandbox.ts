@@ -15,7 +15,10 @@ const STORAGE_KEYS = {
 function checkAndApplyCliReset(): boolean {
   try {
     const savedVer = localStorage.getItem(STORAGE_KEYS.RESET_VERSION);
-    const targetVer = String(sandboxVersion.resetVersion);
+    const targetVer =
+      typeof window !== "undefined" && (window as any).__SANDBOX_RESET_VERSION__
+        ? String((window as any).__SANDBOX_RESET_VERSION__)
+        : String(sandboxVersion.resetVersion);
 
     if (savedVer !== targetVer) {
       localStorage.removeItem(STORAGE_KEYS.UNLOCKED_LEVEL);

@@ -8,7 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
+# dist (incluso per consentire l'avvio con python run.py senza Node.js)
 dist-ssr
 *.local
 

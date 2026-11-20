@@ -40,8 +40,10 @@ from datetime import datetime
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import stat
+import subprocess
 import sys
 import time
 
@@ -251,22 +253,67 @@ def reset_environment(base_dir: Path) -> None:
                 pass
 
     # -------------------------------------------------------------------------
-    # 6. Reset totale sandbox BlockDL (sandbox-version.json)
+    # 6. Reset totale sandbox BlockDL e rigenerazione Build ('dist/')
     # -------------------------------------------------------------------------
-    print("\n[FASE 6/6] Reset della sandbox interattiva BlockDL...")
+    print("\n[FASE 6/6] Reset sandbox BlockDL e rigenerazione build frontend ('dist/')...")
     sandbox_version_path = base_dir / "blockdl-main" / "src" / "lib" / "sandbox-version.json"
-    if sandbox_version_path.exists():
+    new_version = int(time.time() * 1000)
+
+    try:
+        data = {
+            "resetVersion": new_version,
+            "resetAt": datetime.now().isoformat(),
+        }
+        sandbox_version_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        print(f"  🔄 Sandbox BlockDL aggiornata alla versione di reset: {new_version}")
+        print("     -> Livelli 2..6 ribloccati, cache browser azzerata, riapertura sul Livello 1.")
+    except Exception as e:
+        print(f"  ⚠️  Impossibile aggiornare sandbox-version.json: {e}")
+
+    # Rigenerazione pulita della build in 'blockdl-main/dist/'
+    blockdl_dir = base_dir / "blockdl-main"
+    dist_dir = blockdl_dir / "dist"
+
+    npm_cmd = shutil.which("npm") or shutil.which("npm.cmd")
+    rebuilt = False
+
+    if npm_cmd and (blockdl_dir / "package.json").exists():
+        print("  🔨 Rilevato Node.js/npm: ricompilazione del frontend in corso...")
         try:
-            new_version = int(time.time() * 1000)
-            data = {
-                "resetVersion": new_version,
-                "resetAt": datetime.now().isoformat(),
-            }
-            sandbox_version_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-            print(f"  🔄 Sandbox BlockDL aggiornata alla versione di reset: {new_version}")
-            print("     -> Livelli 2..6 ribloccati, cache browser azzerata, riapertura sul Livello 1.")
+            res = subprocess.run(
+                [npm_cmd, "run", "build"],
+                cwd=str(blockdl_dir),
+                capture_output=True,
+                text=True,
+                shell=(sys.platform == "win32"),
+                timeout=90,
+            )
+            if res.returncode == 0 and dist_dir.exists():
+                print("  ✅ Build completata con successo: 'blockdl-main/dist/' aggiornata e pulita.")
+                rebuilt = True
+            else:
+                print(f"  ⚠️  Avviso durante npm run build (codice {res.returncode}): {res.stderr or res.stdout}")
         except Exception as e:
-            print(f"  ⚠️  Impossibile aggiornare sandbox-version.json: {e}")
+            print(f"  ⚠️  Impossibile eseguire npm run build: {e}")
+
+    if not rebuilt and dist_dir.exists():
+        # Se npm non è installato o ha fallito, preserviamo la cartella dist/ esistente
+        # e sincronizziamo dist/index.html con la nuova versione di reset
+        dist_index = dist_dir / "index.html"
+        if dist_index.exists():
+            try:
+                html = dist_index.read_text(encoding="utf-8")
+                injection = f'<script>window.__SANDBOX_RESET_VERSION__ = "{new_version}";</script>'
+                if re.search(r"<script>window\.__SANDBOX_RESET_VERSION__\s*=.*?</script>", html):
+                    html = re.sub(r"<script>window\.__SANDBOX_RESET_VERSION__\s*=.*?</script>", injection, html)
+                elif "</head>" in html:
+                    html = html.replace("</head>", f"{injection}</head>", 1)
+                else:
+                    html = f"{injection}{html}"
+                dist_index.write_text(html, encoding="utf-8")
+                print(f"  ✅ Cartella 'dist/' preservata e sincronizzata con la nuova versione di reset ({new_version}).")
+            except Exception as e:
+                print(f"  ⚠️  Impossibile aggiornare dist/index.html: {e}")
 
     # -------------------------------------------------------------------------
     # RIEPILOGO FINALE E VERIFICA INTEGRITÀ POST-RESET
@@ -310,6 +357,22 @@ def reset_environment(base_dir: Path) -> None:
     # 5. Verifica cartella conversione
     if primary_net_dir.exists() and len(list(primary_net_dir.iterdir())) == 0:
         print("  ✅ CARTELLA CONVERSIONE: 'network to convert/' pronta e vuota per gli studenti")
+
+    # 6. Verifica protezione dei file critici recentemente aggiunti
+    critical_items = [
+        (base_dir / "run.py", "SERVER LAUNCHER"),
+        (base_dir / "VGG16_Ultralytics_Colab_Training.ipynb", "NOTEBOOK GOOGLE COLAB"),
+        (base_dir / "colab_assets", "ASSETS GUIDA COLAB"),
+        (base_dir / "blockdl-main" / "dist", "BUILD FRONTEND"),
+        (base_dir / "convert_vgg_to_detector.py", "SCRIPT CONVERSIONE DETECTOR"),
+        (base_dir / "detector_builder.py", "BUILDER DETECTOR"),
+    ]
+    for c_path, label in critical_items:
+        if c_path.exists():
+            print(f"  🛡️  [PRESERVATO] {label}: '{c_path.name}' intatto e verificato")
+        else:
+            print(f"  ❌ ATTENZIONE CRITICA: Elemento mancante: '{c_path.name}'")
+            all_ok = False
 
     print("=" * 75)
     if all_ok:
